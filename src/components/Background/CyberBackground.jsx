@@ -1,145 +1,33 @@
-import { useEffect, useMemo, useState } from 'react'
-import Particles, { ParticlesProvider, useParticlesProvider } from '@tsparticles/react'
-import { loadSlim } from '@tsparticles/slim'
-import { useScroll, useSpring, useTransform, motion } from 'motion/react'
+import { useMemo } from 'react'
+import { motion, useScroll, useSpring, useTransform } from 'motion/react'
 
 /* ============================================================
-   海洋日/夜粒子背景
-   - 夜晚：月光 + 星光粒子缓缓上浮（像浮游生物发光）
-   - 白天：气泡上升 + 阳光光柱穿透海水
-   - 滚动时整体缓慢视差上移
-   - 深度区颜色随滚动微调（海面 → 深海）
+   俯瞰海洋背景：鲸鱼 + 小鱼群 + 焦散光纹
+   - 滚动时鱼群整体上移（模拟下潜，鱼往上游）
+   - 亮色=白天浅海，暗色=夜晚深海（鱼带生物发光）
    ============================================================ */
 
-// 海洋"深度"主题：随滚动从浅海过渡到深海，颜色越来越深
-const DEPTHS = [
-  { primary: '#5dd5ff', secondary: '#7fc8ff', glow: '#b8e6ff' }, // 海面
-  { primary: '#3ab5e8', secondary: '#5d9fd4', glow: '#7fc8e8' },
-  { primary: '#1d8fc4', secondary: '#3d7fae', glow: '#5d9fc8' },
-  { primary: '#0a6a9e', secondary: '#1d5a8a', glow: '#3d8ab8' }, // 深海
+// 鲸鱼：大块头，缓慢横游
+const WHALES = [
+  { id: 'w1', baseY: 35, scale: 1.2, duration: 80, delay: 0, dir: 1 },
+  { id: 'w2', baseY: 62, scale: 0.9, duration: 95, delay: -30, dir: -1 },
+  { id: 'w3', baseY: 88, scale: 1.0, duration: 110, delay: -60, dir: 1 },
 ]
 
-function mixHex(a, b, t) {
-  const pa = parseInt(a.slice(1), 16)
-  const pb = parseInt(b.slice(1), 16)
-  const ar = (pa >> 16) & 255, ag = (pa >> 8) & 255, ab = pa & 255
-  const br = (pb >> 16) & 255, bg = (pb >> 8) & 255, bb = pb & 255
-  const r = Math.round(ar + (br - ar) * t)
-  const g = Math.round(ag + (bg - ag) * t)
-  const bl = Math.round(ab + (bb - ab) * t)
-  return `#${((r << 16) | (g << 8) | bl).toString(16).padStart(6, '0')}`
-}
-
-function depthAt(progress) {
-  const p = Math.max(0, Math.min(0.9999, progress))
-  const seg = p * (DEPTHS.length - 1)
-  const i = Math.floor(seg)
-  const t = seg - i
-  const a = DEPTHS[i]
-  const b = DEPTHS[i + 1]
-  return {
-    primary: mixHex(a.primary, b.primary, t),
-    secondary: mixHex(a.secondary, b.secondary, t),
-    glow: mixHex(a.glow, b.glow, t),
-    index: i,
-  }
-}
+// 小鱼群：每群一群小鱼，较快移动
+const FISH_SCHOOLS = [
+  { id: 's1', baseY: 18, count: 14, scale: 1, duration: 35, delay: 0, dir: 1, spread: 60 },
+  { id: 's2', baseY: 45, count: 10, scale: 0.8, duration: 45, delay: -15, dir: -1, spread: 50 },
+  { id: 's3', baseY: 72, count: 16, scale: 0.9, duration: 40, delay: -25, dir: 1, spread: 70 },
+  { id: 's4', baseY: 95, count: 12, scale: 0.7, duration: 50, delay: -8, dir: -1, spread: 55 },
+]
 
 export default function CyberBackground() {
-  return (
-    <ParticlesProvider init={async (engine) => { await loadSlim(engine) }}>
-      <BackgroundInner />
-    </ParticlesProvider>
-  )
-}
-
-function BackgroundInner() {
-  const { loaded } = useParticlesProvider()
-  const [depth, setDepth] = useState(depthAt(0))
-  const [isLight, setIsLight] = useState(false)
-
   const { scrollYProgress } = useScroll()
-  const smooth = useSpring(scrollYProgress, { stiffness: 50, damping: 25, mass: 0.8 })
+  const smooth = useSpring(scrollYProgress, { stiffness: 50, damping: 28, mass: 0.9 })
 
-  // 整体视差上移（模拟水流）
-  const parallaxY = useTransform(smooth, [0, 1], [0, -100])
-
-  // 检测主题变化
-  useEffect(() => {
-    const check = () => setIsLight(document.documentElement.classList.contains('theme-light'))
-    check()
-    const observer = new MutationObserver(check)
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
-    return () => observer.disconnect()
-  }, [])
-
-  // 监听滚动，更新深度色
-  useEffect(() => {
-    let raf = 0
-    const unsub = smooth.on('change', (v) => {
-      cancelAnimationFrame(raf)
-      raf = requestAnimationFrame(() => setDepth(depthAt(v)))
-    })
-    return () => { unsub(); cancelAnimationFrame(raf) }
-  }, [smooth])
-
-  // 粒子配置：夜晚=发光浮游生物 / 白天=气泡
-  const options = useMemo(() => ({
-    fullScreen: { enable: false },
-    background: { color: 'transparent' },
-    fpsLimit: 60,
-    detectRetina: true,
-    particles: {
-      number: {
-        value: isLight ? 90 : 130,
-        density: { enable: true, area: 1200 },
-      },
-      // 夜晚用发光色，白天用白色气泡
-      color: { value: isLight ? ['#ffffff', depth.glow] : [depth.glow, depth.primary, '#ffffff'] },
-      shape: { type: 'circle' },
-      opacity: {
-        value: { min: 0.15, max: isLight ? 0.6 : 0.85 },
-        animation: { enable: true, speed: 0.5, sync: false },
-      },
-      size: {
-        // 白天气泡更大更圆，夜晚粒子小而亮
-        value: { min: isLight ? 1 : 0.6, max: isLight ? 4 : 2.2 },
-        animation: { enable: true, speed: 1.5, sync: false },
-      },
-      // 向上漂浮（气泡上升 / 浮游生物上浮）
-      move: {
-        enable: true,
-        speed: isLight ? 0.8 : 0.4,
-        direction: 'top',
-        straight: false,
-        outModes: { default: 'out' },
-        random: true,
-        // 水流摆动
-        trail: { enable: false },
-      },
-      // 夜晚发光，白天不发光（气泡不发光）
-      shadow: {
-        enable: !isLight,
-        color: depth.primary,
-        blur: 6,
-      },
-      // 不连线（海洋不是星座）
-      links: { enable: false },
-    },
-    interactivity: {
-      events: {
-        onHover: { enable: true, mode: ['bubble'] },
-      },
-      modes: {
-        bubble: {
-          distance: 150,
-          size: 6,
-          duration: 1.5,
-          opacity: 0.8,
-        },
-      },
-    },
-  }), [depth.primary, depth.glow, isLight])
+  // 鱼群整体随滚动上移（下潜感）—— 滚到底时上移一屏多
+  const fishY = useTransform(smooth, [0, 1], [0, -1200])
 
   return (
     <div
@@ -147,164 +35,201 @@ function BackgroundInner() {
       aria-hidden="true"
       style={{ background: 'var(--bg-base)' }}
     >
-      {/* 1. 海洋渐变背景（上浅下深，模拟水深） */}
-      <div
+      {/* 1. 海洋深度渐变（俯瞰，从浅到深） */}
+      <motion.div
         className="absolute inset-0"
+        style={{ filter: 'brightness(var(--ocean-brightness, 1))' }}
+      >
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(180deg, var(--ocean-grad-top) 0%, var(--ocean-grad-mid) 40%, var(--ocean-grad-bottom) 100%)',
+          }}
+        />
+      </motion.div>
+
+      {/* 2. 焦散光纹（水面阳光透射的网状光斑） */}
+      <Caustics />
+
+      {/* 3. 鱼群层（鲸鱼 + 小鱼）—— 随滚动上移 */}
+      <motion.div
+        className="absolute inset-0"
+        style={{ y: fishY, height: '200%' }}
+      >
+        {/* 鲸鱼 */}
+        {WHALES.map((w) => (
+          <Whale key={w.id} w={w} />
+        ))}
+        {/* 小鱼群 */}
+        {FISH_SCHOOLS.map((s) => (
+          <FishSchool key={s.id} s={s} />
+        ))}
+      </motion.div>
+
+      {/* 4. 水面光斑（顶部高光） */}
+      <div
+        className="absolute inset-x-0 top-0 pointer-events-none"
         style={{
-          background: `linear-gradient(180deg, var(--ocean-grad-top) 0%, var(--ocean-grad-mid) 45%, var(--ocean-grad-bottom) 100%)`,
+          height: '30vh',
+          background:
+            'linear-gradient(180deg, var(--ray-color) 0%, transparent 100%)',
         }}
       />
 
-      {/* 2. 光柱 / 阳光穿透层 */}
-      <motion.div
-        className="absolute inset-0"
-        style={{ y: parallaxY }}
-      >
-        <LightRays isLight={isLight} />
-      </motion.div>
-
-      {/* 3. 水波纹（SVG 波浪，缓慢漂动） */}
-      <WaterWaves isLight={isLight} depth={depth} />
-
-      {/* 4. 粒子层（气泡/浮游生物） */}
-      <motion.div
-        className="absolute inset-0"
-        style={{ y: parallaxY }}
-      >
-        {loaded && (
-          <Particles
-            id="bg-particles"
-            options={options}
-            className="h-full w-full"
-          />
-        )}
-      </motion.div>
-
-      {/* 5. 月亮（夜晚）/ 太阳（白天） */}
-      <CelestialBody isLight={isLight} />
-
-      {/* 6. 顶部 / 底部暗角 */}
+      {/* 5. 顶部 / 底部暗角 */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: `linear-gradient(180deg, var(--vignette-top) 0%, transparent 25%, transparent 75%, var(--vignette-bottom) 100%)`,
+          background:
+            'linear-gradient(180deg, var(--vignette-top) 0%, transparent 25%, transparent 75%, var(--vignette-bottom) 100%)',
         }}
       />
-
-      {/* 7. 深度指示 HUD */}
-      <div className="absolute bottom-4 right-5 pointer-events-none font-mono text-[10px] tracking-[0.2em] text-white/30">
-        <span style={{ color: depth.primary }}>●</span>{' '}
-        DEPTH {String(depth.index + 1).padStart(2, '0')}/{String(DEPTHS.length).padStart(2, '0')}
-      </div>
     </div>
   )
 }
 
-/* 光柱：从顶部斜向下穿透的几条光带 */
-function LightRays({ isLight }) {
-  const rays = [
-    { left: '15%', width: '180px', rotate: -12, delay: 0 },
-    { left: '38%', width: '220px', rotate: -8, delay: 1.2 },
-    { left: '62%', width: '200px', rotate: 6, delay: 0.6 },
-    { left: '82%', width: '160px', rotate: 10, delay: 1.8 },
-  ]
+/* ---------------- 焦散光纹 ---------------- */
+function Caustics() {
   return (
-    <div className="absolute inset-0">
-      {rays.map((r, i) => (
-        <motion.div
-          key={i}
-          className="absolute top-0"
-          style={{
-            left: r.left,
-            width: r.width,
-            height: '100vh',
-            background: `linear-gradient(180deg, var(--ray-color) 0%, transparent 80%)`,
-            transform: `rotate(${r.rotate}deg)`,
-            transformOrigin: 'top center',
-            filter: 'blur(2px)',
-          }}
-          animate={{
-            opacity: [0.4, 0.8, 0.4],
-            x: [0, 8, 0],
-          }}
-          transition={{
-            duration: 8 + i,
-            delay: r.delay,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
-      ))}
-    </div>
-  )
-}
-
-/* 水波纹：底部 SVG 波浪缓慢漂动 */
-function WaterWaves({ isLight, depth }) {
-  return (
-    <div className="absolute inset-x-0 bottom-0 pointer-events-none">
-      <svg
-        viewBox="0 0 1440 200"
-        className="w-full"
-        preserveAspectRatio="none"
-        style={{ height: '40vh', opacity: 0.5 }}
-      >
-        <motion.path
-          fill={isLight ? 'rgba(255,255,255,0.15)' : `${depth.primary}1a`}
-          initial={{ x: 0 }}
-          animate={{ x: [0, -200, 0] }}
-          transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-          d="M0,80 C320,140 480,20 720,80 C960,140 1120,20 1440,80 L1440,200 L0,200 Z"
-        />
-        <motion.path
-          fill={isLight ? 'rgba(255,255,255,0.1)' : `${depth.secondary}1a`}
-          initial={{ x: -100 }}
-          animate={{ x: [-100, 100, -100] }}
-          transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
-          d="M0,120 C240,60 560,180 840,120 C1080,80 1260,160 1440,120 L1440,200 L0,200 Z"
-        />
-      </svg>
-    </div>
-  )
-}
-
-/* 月亮（夜晚）/ 太阳（白天） */
-function CelestialBody({ isLight }) {
-  if (isLight) {
-    // 太阳：右上方淡黄色光晕
-    return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ opacity: 'var(--caustic-opacity, 0.4)' }}>
+      {/* 两层焦散纹理交叉漂动 */}
       <motion.div
-        className="absolute"
+        className="absolute inset-0"
         style={{
-          right: '8%',
-          top: '8%',
-          width: '120px',
-          height: '120px',
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(255,245,200,0.6) 0%, rgba(255,220,150,0.2) 50%, transparent 70%)',
-          filter: 'blur(8px)',
+          backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(`
+            <svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'>
+              <filter id='c'>
+                <feTurbulence type='fractalNoise' baseFrequency='0.012 0.025' numOctaves='2' seed='3'/>
+                <feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1.5 -0.3'/>
+              </filter>
+              <rect width='100%' height='100%' filter='url(#c)'/>
+            </svg>
+          `)}")`,
+          backgroundSize: '600px 600px',
+          mixBlendMode: 'screen',
         }}
-        animate={{ opacity: [0.6, 0.9, 0.6] }}
-        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+        animate={{ x: [0, -100, 0], y: [0, -50, 0] }}
+        transition={{ duration: 40, repeat: Infinity, ease: 'easeInOut' }}
       />
-    )
-  }
-  // 月亮：右上方淡蓝月光
+      <motion.div
+        className="absolute inset-0"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(`
+            <svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'>
+              <filter id='c2'>
+                <feTurbulence type='fractalNoise' baseFrequency='0.018 0.03' numOctaves='2' seed='7'/>
+                <feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1.5 -0.4'/>
+              </filter>
+              <rect width='100%' height='100%' filter='url(#c2)'/>
+            </svg>
+          `)}")`,
+          backgroundSize: '500px 500px',
+          mixBlendMode: 'screen',
+        }}
+        animate={{ x: [0, 80, 0], y: [0, 60, 0] }}
+        transition={{ duration: 50, repeat: Infinity, ease: 'easeInOut' }}
+      />
+    </div>
+  )
+}
+
+/* ---------------- 鲸鱼（SVG 俯瞰剪影） ---------------- */
+function Whale({ w }) {
+  const startX = w.dir > 0 ? '-15%' : '115%'
+  const endX = w.dir > 0 ? '115%' : '-15%'
+
   return (
     <motion.div
       className="absolute"
-      style={{
-        right: '10%',
-        top: '10%',
-        width: '100px',
-        height: '100px',
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(180,220,255,0.5) 0%, rgba(120,180,220,0.15) 50%, transparent 70%)',
-        filter: 'blur(6px)',
-        boxShadow: '0 0 80px rgba(180,220,255,0.3)',
+      style={{ top: `${w.baseY}%`, width: `${180 * w.scale}px`, height: `${80 * w.scale}px` }}
+      initial={{ x: startX }}
+      animate={{ x: [startX, endX] }}
+      transition={{
+        duration: w.duration,
+        delay: w.delay,
+        repeat: Infinity,
+        ease: 'linear',
       }}
-      animate={{ opacity: [0.5, 0.8, 0.5] }}
-      transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
-    />
+    >
+      <svg
+        viewBox="0 0 180 80"
+        className="h-full w-full"
+        style={{
+          transform: w.dir < 0 ? 'scaleX(-1)' : 'none',
+          filter: 'drop-shadow(0 8px 20px var(--fish-shadow, rgba(0,0,0,0.4)))',
+        }}
+      >
+        {/* 鲸鱼俯瞰剪影：头部圆润，身体纺锤形，尾鳍分叉 */}
+        <path
+          d="M10,40 C20,25 50,18 90,20 C120,22 145,28 158,35 C168,38 175,36 178,32 C176,38 172,44 165,46 C170,52 168,58 162,60 C150,55 120,52 90,52 C50,52 25,50 15,48 C8,46 6,44 10,40 Z M165,46 C172,50 176,56 174,62 C170,58 168,52 165,46 Z"
+          fill="var(--fish-fill, #0a2540)"
+          opacity="var(--fish-opacity, 0.75)"
+        />
+        {/* 鲸鱼脊背高光 */}
+        <path
+          d="M30,38 C60,30 110,28 150,36 L150,42 C110,38 60,40 30,44 Z"
+          fill="var(--fish-highlight, rgba(255,255,255,0.15))"
+        />
+        {/* 眼睛小点 */}
+        <circle cx="160" cy="38" r="1.5" fill="var(--fish-eye, rgba(255,255,255,0.6))" />
+      </svg>
+    </motion.div>
+  )
+}
+
+/* ---------------- 小鱼群 ---------------- */
+function FishSchool({ s }) {
+  const startX = s.dir > 0 ? '-10%' : '110%'
+  const endX = s.dir > 0 ? '110%' : '-10%'
+
+  // 每条小鱼在群内的相对偏移（随机分布）
+  const fishes = useMemo(() => {
+    return Array.from({ length: s.count }, (_, i) => ({
+      dx: (Math.random() - 0.5) * s.spread,
+      dy: (Math.random() - 0.5) * s.spread * 0.6,
+      scale: 0.6 + Math.random() * 0.6,
+      delay: Math.random() * 2,
+    }))
+  }, [s.count, s.spread])
+
+  return (
+    <motion.div
+      className="absolute"
+      style={{ top: `${s.baseY}%`, left: 0, width: '100%', height: `${s.spread * 2}px` }}
+      initial={{ x: startX }}
+      animate={{ x: [startX, endX] }}
+      transition={{
+        duration: s.duration,
+        delay: s.delay,
+        repeat: Infinity,
+        ease: 'linear',
+      }}
+    >
+      {fishes.map((f, i) => (
+        <motion.div
+          key={i}
+          className="absolute"
+          style={{
+            left: `${50 + f.dx * 0.5}%`,
+            top: `${50 + f.dy}%`,
+            width: `${24 * s.scale * f.scale}px`,
+            height: `${10 * s.scale * f.scale}px`,
+            transform: `translate(-50%, -50%) ${s.dir < 0 ? 'scaleX(-1)' : ''}`,
+          }}
+          animate={{ y: [0, -3, 0, 3, 0] }}
+          transition={{ duration: 2 + Math.random(), delay: f.delay, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <svg viewBox="0 0 24 10" className="h-full w-full">
+            {/* 小鱼：简单纺锤形 + 三角尾 */}
+            <path
+              d="M2,5 C5,1 14,1 19,5 C14,9 5,9 2,5 Z M18,2 L23,5 L18,8 Z"
+              fill="var(--fish-fill, #0a2540)"
+              opacity="var(--fish-opacity, 0.7)"
+            />
+          </svg>
+        </motion.div>
+      ))}
+    </motion.div>
   )
 }

@@ -33,16 +33,21 @@
   --noise-opacity: 0.015;
 
   /* 海洋背景渐变：深夜海面 → 深海 */
-  --ocean-grad-top: #021024;
-  --ocean-grad-mid: #051428;
-  --ocean-grad-bottom: #0a2540;
-  /* 月光/星光色 */
-  --particle-color: #b8e6ff;
-  --particle-link-opacity: 0.14;
-  /* 光柱色 */
-  --ray-color: rgba(180, 220, 255, 0.07);
-  --vignette-top: rgba(2, 16, 36, 0.45);
-  --vignette-bottom: rgba(2, 16, 36, 0.85);
+  --ocean-grad-top: #041e3a;
+  --ocean-grad-mid: #03152e;
+  --ocean-grad-bottom: #010a1c;
+  /* 鱼的颜色：夜晚深海鱼是深色剪影 + 微弱生物发光 */
+  --fish-fill: #001a33;
+  --fish-opacity: 0.85;
+  --fish-highlight: rgba(120, 200, 255, 0.25);
+  --fish-eye: rgba(150, 220, 255, 0.8);
+  --fish-shadow: rgba(0, 0, 0, 0.6);
+  /* 焦散光纹（夜晚较弱） */
+  --caustic-opacity: 0.25;
+  /* 水面光柱 */
+  --ray-color: rgba(120, 180, 230, 0.08);
+  --vignette-top: rgba(4, 30, 58, 0.4);
+  --vignette-bottom: rgba(1, 10, 28, 0.9);
 }
 
 html.theme-light {
@@ -71,17 +76,22 @@ html.theme-light {
   --scan-opacity: 0.015;
   --noise-opacity: 0.008;
 
-  /* 白天海洋渐变：浅海蓝 → 深海蓝 */
-  --ocean-grad-top: #b0d9ec;
-  --ocean-grad-mid: #7fb8d4;
-  --ocean-grad-bottom: #3d7a9e;
-  /* 气泡/浮游粒子色 */
-  --particle-color: #ffffff;
-  --particle-link-opacity: 0.1;
+  /* 白天海洋渐变：浅海蓝 → 深海蓝（俯瞰，从浅到深） */
+  --ocean-grad-top: #a8d5e8;
+  --ocean-grad-mid: #5a9cc0;
+  --ocean-grad-bottom: #2c5f7e;
+  /* 鱼的颜色：白天浅海鱼是深色剪影（俯瞰看影子） */
+  --fish-fill: #0a3548;
+  --fish-opacity: 0.7;
+  --fish-highlight: rgba(255, 255, 255, 0.3);
+  --fish-eye: rgba(255, 255, 255, 0.7);
+  --fish-shadow: rgba(0, 20, 40, 0.4);
+  /* 焦散光纹（白天强烈） */
+  --caustic-opacity: 0.55;
   /* 阳光光柱 */
-  --ray-color: rgba(255, 245, 200, 0.15);
-  --vignette-top: rgba(176, 217, 236, 0.3);
-  --vignette-bottom: rgba(61, 122, 158, 0.5);
+  --ray-color: rgba(255, 248, 210, 0.2);
+  --vignette-top: rgba(168, 213, 232, 0.3);
+  --vignette-bottom: rgba(44, 95, 126, 0.6);
 }
 
 * {
