@@ -118,7 +118,7 @@ export default function App() {
             animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
             transition={{ duration: 0.8, ease: 'easeOut' }}
           >
-            <span className="glitch neon-text" data-text="hao">
+            <span className="neon-text" data-text="hao">
               hao
             </span>
           </motion.h1>
@@ -130,8 +130,8 @@ export default function App() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.6 }}
           >
-            <span className="text-[var(--neon-magenta)]">{'> '}</span>
-            personal cyber navigation
+            <span className="text-[var(--neon-magenta)]">~ </span>
+            ocean navigation
             <span className="ml-1 inline-block h-3 w-1.5 animate-pulse bg-[var(--neon-cyan)] align-middle" />
           </motion.p>
 
@@ -191,7 +191,7 @@ export default function App() {
           <div className="mx-auto max-w-6xl px-5 text-center font-mono text-[11px] text-ink-faint">
             <p>
               <span className="neon-text">hao</span> · {new Date().getFullYear()} ·
-              cyberpunk navigation · mseeks.com
+              ocean navigation · mseeks.com
             </p>
             <p className="mt-1 opacity-60">
               built with React · Vite · Motion · Tailwind

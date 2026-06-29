@@ -3,29 +3,22 @@ import Particles, { ParticlesProvider, useParticlesProvider } from '@tsparticles
 import { loadSlim } from '@tsparticles/slim'
 import { useScroll, useSpring, useTransform, motion } from 'motion/react'
 
-/* 读取当前主题的 CSS 变量值 */
-function cssVar(name) {
-  if (typeof window === 'undefined') return ''
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
-}
-
 /* ============================================================
-   滚动联动的星空粒子背景
-   - tsparticles 渲染深空星点 + 近邻连线（伪星座）+ 漂浮星尘
-   - 颜色随滚动进度在 5 个"星域主题"间过渡（青→紫→品红→琥珀→翡翠）
-   - 整体随滚动缓慢视差上移
+   海洋日/夜粒子背景
+   - 夜晚：月光 + 星光粒子缓缓上浮（像浮游生物发光）
+   - 白天：气泡上升 + 阳光光柱穿透海水
+   - 滚动时整体缓慢视差上移
+   - 深度区颜色随滚动微调（海面 → 深海）
    ============================================================ */
 
-// 5 个星域主题：每个对应一段滚动区间，颜色 + 星云调色不同
-const THEMES = [
-  { id: 'cyan',    primary: '#00f0ff', secondary: '#4a9eff', nebula: '#0080ff' },
-  { id: 'violet',  primary: '#b16cff', secondary: '#7a4dff', nebula: '#6a3aff' },
-  { id: 'magenta', primary: '#ff2a6d', secondary: '#ff5e9c', nebula: '#c01a5a' },
-  { id: 'amber',   primary: '#ffb454', secondary: '#ff7e3a', nebula: '#cc5a1a' },
-  { id: 'emerald', primary: '#5ff0a8', secondary: '#22d3a0', nebula: '#10b07a' },
+// 海洋"深度"主题：随滚动从浅海过渡到深海，颜色越来越深
+const DEPTHS = [
+  { primary: '#5dd5ff', secondary: '#7fc8ff', glow: '#b8e6ff' }, // 海面
+  { primary: '#3ab5e8', secondary: '#5d9fd4', glow: '#7fc8e8' },
+  { primary: '#1d8fc4', secondary: '#3d7fae', glow: '#5d9fc8' },
+  { primary: '#0a6a9e', secondary: '#1d5a8a', glow: '#3d8ab8' }, // 深海
 ]
 
-// 混合两个 hex 颜色
 function mixHex(a, b, t) {
   const pa = parseInt(a.slice(1), 16)
   const pb = parseInt(b.slice(1), 16)
@@ -37,20 +30,18 @@ function mixHex(a, b, t) {
   return `#${((r << 16) | (g << 8) | bl).toString(16).padStart(6, '0')}`
 }
 
-// 根据滚动进度 0~1 计算当前主题颜色（在相邻主题间线性插值）
-function themeAt(progress) {
+function depthAt(progress) {
   const p = Math.max(0, Math.min(0.9999, progress))
-  const seg = p * (THEMES.length - 1)
+  const seg = p * (DEPTHS.length - 1)
   const i = Math.floor(seg)
   const t = seg - i
-  const a = THEMES[i]
-  const b = THEMES[i + 1]
+  const a = DEPTHS[i]
+  const b = DEPTHS[i + 1]
   return {
     primary: mixHex(a.primary, b.primary, t),
     secondary: mixHex(a.secondary, b.secondary, t),
-    nebula: mixHex(a.nebula, b.nebula, t),
+    glow: mixHex(a.glow, b.glow, t),
     index: i,
-    t,
   }
 }
 
@@ -64,14 +55,14 @@ export default function CyberBackground() {
 
 function BackgroundInner() {
   const { loaded } = useParticlesProvider()
-  const [theme, setTheme] = useState(themeAt(0))
+  const [depth, setDepth] = useState(depthAt(0))
   const [isLight, setIsLight] = useState(false)
 
   const { scrollYProgress } = useScroll()
-  const smooth = useSpring(scrollYProgress, { stiffness: 60, damping: 25, mass: 0.8 })
+  const smooth = useSpring(scrollYProgress, { stiffness: 50, damping: 25, mass: 0.8 })
 
-  // 整体视差上移（最大 80px）
-  const parallaxY = useTransform(smooth, [0, 1], [0, -80])
+  // 整体视差上移（模拟水流）
+  const parallaxY = useTransform(smooth, [0, 1], [0, -100])
 
   // 检测主题变化
   useEffect(() => {
@@ -82,19 +73,17 @@ function BackgroundInner() {
     return () => observer.disconnect()
   }, [])
 
-  // 监听滚动进度，更新主题色（节流到 ~30fps）
+  // 监听滚动，更新深度色
   useEffect(() => {
     let raf = 0
     const unsub = smooth.on('change', (v) => {
       cancelAnimationFrame(raf)
-      raf = requestAnimationFrame(() => setTheme(themeAt(v)))
+      raf = requestAnimationFrame(() => setDepth(depthAt(v)))
     })
     return () => { unsub(); cancelAnimationFrame(raf) }
   }, [smooth])
 
-  const particleColor = isLight ? '#4a5578' : '#ffffff'
-  const linkOpacity = isLight ? 0.1 : 0.18
-
+  // 粒子配置：夜晚=发光浮游生物 / 白天=气泡
   const options = useMemo(() => ({
     fullScreen: { enable: false },
     background: { color: 'transparent' },
@@ -102,58 +91,55 @@ function BackgroundInner() {
     detectRetina: true,
     particles: {
       number: {
-        value: isLight ? 120 : 220,
+        value: isLight ? 90 : 130,
         density: { enable: true, area: 1200 },
       },
-      color: { value: isLight ? [particleColor, theme.primary, theme.secondary] : [theme.primary, theme.secondary, particleColor] },
+      // 夜晚用发光色，白天用白色气泡
+      color: { value: isLight ? ['#ffffff', depth.glow] : [depth.glow, depth.primary, '#ffffff'] },
       shape: { type: 'circle' },
       opacity: {
-        value: { min: 0.1, max: isLight ? 0.5 : 0.9 },
-        animation: { enable: true, speed: 0.6, sync: false },
+        value: { min: 0.15, max: isLight ? 0.6 : 0.85 },
+        animation: { enable: true, speed: 0.5, sync: false },
       },
       size: {
-        value: { min: 0.4, max: 2.0 },
-        animation: { enable: true, speed: 1.2, sync: false },
+        // 白天气泡更大更圆，夜晚粒子小而亮
+        value: { min: isLight ? 1 : 0.6, max: isLight ? 4 : 2.2 },
+        animation: { enable: true, speed: 1.5, sync: false },
       },
+      // 向上漂浮（气泡上升 / 浮游生物上浮）
       move: {
         enable: true,
-        speed: 0.25,
+        speed: isLight ? 0.8 : 0.4,
         direction: 'top',
         straight: false,
         outModes: { default: 'out' },
         random: true,
+        // 水流摆动
+        trail: { enable: false },
       },
-      links: {
-        enable: true,
-        distance: 130,
-        color: theme.primary,
-        opacity: linkOpacity,
-        width: 0.6,
-        triangles: { enable: false },
-      },
+      // 夜晚发光，白天不发光（气泡不发光）
       shadow: {
         enable: !isLight,
-        color: theme.primary,
-        blur: 4,
+        color: depth.primary,
+        blur: 6,
       },
+      // 不连线（海洋不是星座）
+      links: { enable: false },
     },
     interactivity: {
       events: {
-        onHover: { enable: true, mode: ['grab'] },
+        onHover: { enable: true, mode: ['bubble'] },
       },
       modes: {
-        grab: {
-          distance: 180,
-          links: { opacity: 0.5, color: theme.primary },
+        bubble: {
+          distance: 150,
+          size: 6,
+          duration: 1.5,
+          opacity: 0.8,
         },
       },
     },
-  }), [theme.primary, theme.secondary, isLight, particleColor, linkOpacity])
-
-  // 背景渐变
-  const spaceGradient = isLight
-    ? 'radial-gradient(ellipse at 50% 45%, var(--space-grad-inner) 0%, var(--space-grad-mid) 50%, var(--space-grad-outer) 100%)'
-    : 'radial-gradient(ellipse at 50% 45%, var(--space-grad-inner) 0%, var(--space-grad-mid) 50%, var(--space-grad-outer) 100%)'
+  }), [depth.primary, depth.glow, isLight])
 
   return (
     <div
@@ -161,21 +147,26 @@ function BackgroundInner() {
       aria-hidden="true"
       style={{ background: 'var(--bg-base)' }}
     >
-      {/* 1. 背景渐变 */}
+      {/* 1. 海洋渐变背景（上浅下深，模拟水深） */}
       <div
         className="absolute inset-0"
-        style={{ background: spaceGradient }}
+        style={{
+          background: `linear-gradient(180deg, var(--ocean-grad-top) 0%, var(--ocean-grad-mid) 45%, var(--ocean-grad-bottom) 100%)`,
+        }}
       />
 
-      {/* 2. 星云光晕 */}
+      {/* 2. 光柱 / 阳光穿透层 */}
       <motion.div
         className="absolute inset-0"
         style={{ y: parallaxY }}
       >
-        <Nebula theme={theme} isLight={isLight} />
+        <LightRays isLight={isLight} />
       </motion.div>
 
-      {/* 3. 粒子星点 + 近邻连线 */}
+      {/* 3. 水波纹（SVG 波浪，缓慢漂动） */}
+      <WaterWaves isLight={isLight} depth={depth} />
+
+      {/* 4. 粒子层（气泡/浮游生物） */}
       <motion.div
         className="absolute inset-0"
         style={{ y: parallaxY }}
@@ -189,64 +180,131 @@ function BackgroundInner() {
         )}
       </motion.div>
 
-      {/* 4. 顶部 / 底部暗角 */}
+      {/* 5. 月亮（夜晚）/ 太阳（白天） */}
+      <CelestialBody isLight={isLight} />
+
+      {/* 6. 顶部 / 底部暗角 */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: `linear-gradient(180deg, var(--vignette-top) 0%, transparent 22%, transparent 78%, var(--vignette-bottom) 100%)`,
+          background: `linear-gradient(180deg, var(--vignette-top) 0%, transparent 25%, transparent 75%, var(--vignette-bottom) 100%)`,
         }}
       />
 
-      {/* 5. 右下角当前星域指示 */}
+      {/* 7. 深度指示 HUD */}
       <div className="absolute bottom-4 right-5 pointer-events-none font-mono text-[10px] tracking-[0.2em] text-white/30">
-        <span style={{ color: theme.primary }}>●</span>{' '}
-        SECTOR {String(theme.index + 1).padStart(2, '0')}/{String(THEMES.length).padStart(2, '0')}
+        <span style={{ color: depth.primary }}>●</span>{' '}
+        DEPTH {String(depth.index + 1).padStart(2, '0')}/{String(DEPTHS.length).padStart(2, '0')}
       </div>
     </div>
   )
 }
 
-/* 星云：3 块大径向渐变叠加 */
-function Nebula({ theme, isLight }) {
-  const opacityMult = isLight ? 0.3 : 1
+/* 光柱：从顶部斜向下穿透的几条光带 */
+function LightRays({ isLight }) {
+  const rays = [
+    { left: '15%', width: '180px', rotate: -12, delay: 0 },
+    { left: '38%', width: '220px', rotate: -8, delay: 1.2 },
+    { left: '62%', width: '200px', rotate: 6, delay: 0.6 },
+    { left: '82%', width: '160px', rotate: 10, delay: 1.8 },
+  ]
   return (
-    <>
-      <div
+    <div className="absolute inset-0">
+      {rays.map((r, i) => (
+        <motion.div
+          key={i}
+          className="absolute top-0"
+          style={{
+            left: r.left,
+            width: r.width,
+            height: '100vh',
+            background: `linear-gradient(180deg, var(--ray-color) 0%, transparent 80%)`,
+            transform: `rotate(${r.rotate}deg)`,
+            transformOrigin: 'top center',
+            filter: 'blur(2px)',
+          }}
+          animate={{
+            opacity: [0.4, 0.8, 0.4],
+            x: [0, 8, 0],
+          }}
+          transition={{
+            duration: 8 + i,
+            delay: r.delay,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
+/* 水波纹：底部 SVG 波浪缓慢漂动 */
+function WaterWaves({ isLight, depth }) {
+  return (
+    <div className="absolute inset-x-0 bottom-0 pointer-events-none">
+      <svg
+        viewBox="0 0 1440 200"
+        className="w-full"
+        preserveAspectRatio="none"
+        style={{ height: '40vh', opacity: 0.5 }}
+      >
+        <motion.path
+          fill={isLight ? 'rgba(255,255,255,0.15)' : `${depth.primary}1a`}
+          initial={{ x: 0 }}
+          animate={{ x: [0, -200, 0] }}
+          transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+          d="M0,80 C320,140 480,20 720,80 C960,140 1120,20 1440,80 L1440,200 L0,200 Z"
+        />
+        <motion.path
+          fill={isLight ? 'rgba(255,255,255,0.1)' : `${depth.secondary}1a`}
+          initial={{ x: -100 }}
+          animate={{ x: [-100, 100, -100] }}
+          transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
+          d="M0,120 C240,60 560,180 840,120 C1080,80 1260,160 1440,120 L1440,200 L0,200 Z"
+        />
+      </svg>
+    </div>
+  )
+}
+
+/* 月亮（夜晚）/ 太阳（白天） */
+function CelestialBody({ isLight }) {
+  if (isLight) {
+    // 太阳：右上方淡黄色光晕
+    return (
+      <motion.div
         className="absolute"
         style={{
-          left: '20%', top: '15%',
-          width: '70vmin', height: '70vmin',
-          transform: 'translate(-50%, -50%)',
-          background: `radial-gradient(circle, ${theme.nebula}${isLight ? '22' : '55'} 0%, ${theme.nebula}${isLight ? '11' : '22'} 30%, transparent 70%)`,
-          filter: 'blur(40px)',
-          mixBlendMode: 'screen',
-          opacity: opacityMult,
+          right: '8%',
+          top: '8%',
+          width: '120px',
+          height: '120px',
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(255,245,200,0.6) 0%, rgba(255,220,150,0.2) 50%, transparent 70%)',
+          filter: 'blur(8px)',
         }}
+        animate={{ opacity: [0.6, 0.9, 0.6] }}
+        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
       />
-      <div
-        className="absolute"
-        style={{
-          left: '78%', top: '60%',
-          width: '60vmin', height: '60vmin',
-          transform: 'translate(-50%, -50%)',
-          background: `radial-gradient(circle, ${theme.primary}${isLight ? '22' : '44'} 0%, ${theme.primary}${isLight ? '08' : '11'} 40%, transparent 75%)`,
-          filter: 'blur(50px)',
-          mixBlendMode: 'screen',
-          opacity: opacityMult,
-        }}
-      />
-      <div
-        className="absolute"
-        style={{
-          left: '50%', top: '85%',
-          width: '50vmin', height: '50vmin',
-          transform: 'translate(-50%, -50%)',
-          background: `radial-gradient(circle, ${theme.secondary}${isLight ? '1a' : '33'} 0%, transparent 70%)`,
-          filter: 'blur(45px)',
-          mixBlendMode: 'screen',
-          opacity: opacityMult,
-        }}
-      />
-    </>
+    )
+  }
+  // 月亮：右上方淡蓝月光
+  return (
+    <motion.div
+      className="absolute"
+      style={{
+        right: '10%',
+        top: '10%',
+        width: '100px',
+        height: '100px',
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(180,220,255,0.5) 0%, rgba(120,180,220,0.15) 50%, transparent 70%)',
+        filter: 'blur(6px)',
+        boxShadow: '0 0 80px rgba(180,220,255,0.3)',
+      }}
+      animate={{ opacity: [0.5, 0.8, 0.5] }}
+      transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
+    />
   )
 }

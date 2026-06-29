@@ -71,15 +71,6 @@ export const searchEngines = [
     hint: '代码',
   },
   {
-    id: 'zhihu',
-    name: '知乎',
-    favicon: favicon('zhihu.com'),
-    color: '#0084FF',
-    url: 'https://www.zhihu.com/search?q=',
-    placeholder: '在知乎搜索问答',
-    hint: '问答',
-  },
-  {
     id: 'wikipedia',
     name: '维基',
     favicon: favicon('wikipedia.org'),
