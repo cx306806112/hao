@@ -1,28 +1,25 @@
-import { motion } from 'motion/react'
+import { motion, useScroll, useSpring, useTransform } from 'motion/react'
 import { useParallax } from '../../hooks/useParallax'
 
 /* ============================================================
-   星座数据：x/y 为屏幕归一化坐标 (0~1)。
-   星座故意"藏"在星云亮度较高的区域，连线细、星点小。
-   滚动时整体缓慢视差上移。
+   星座数据：星点在自身局部坐标系 (-1 ~ 1)。
+   所有星座垂直排列成一条"星轨"，滚动时依次经过屏幕中央。
+   整体调暗，让它像星云里的 faint 结构。
    ============================================================ */
 const CONSTELLATIONS = [
   {
     id: 'orion',
     name: '猎户座',
     en: 'ORION',
-    accent: '#a0f0ff',
-    cx: 0.5,
-    cy: 0.48,
-    scale: 1.05,
+    accent: '#6ec8d6',
     stars: [
-      { x: -0.055, y: -0.11, r: 2.0 },
-      { x: 0.075, y: -0.10, r: 1.7 },
-      { x: 0.025, y: 0.00, r: 1.3 },
-      { x: 0, y: 0.015, r: 1.4 },
-      { x: -0.025, y: 0.03, r: 1.3 },
-      { x: -0.05, y: 0.12, r: 1.7 },
-      { x: 0.06, y: 0.11, r: 2.1 },
+      { x: -0.28, y: -0.42, r: 2.6 }, // Betelgeuse
+      { x: 0.34, y: -0.38, r: 2.2 }, // Bellatrix
+      { x: 0.12, y: 0.02, r: 1.7 }, // Mintaka
+      { x: 0, y: 0.06, r: 1.9 }, // Alnilam
+      { x: -0.14, y: 0.10, r: 1.7 }, // Alnitak
+      { x: -0.22, y: 0.46, r: 2.2 }, // Saiph
+      { x: 0.28, y: 0.44, r: 2.8 }, // Rigel
     ],
     lines: [[0, 2], [1, 4], [2, 3], [3, 4], [2, 5], [4, 6]],
   },
@@ -30,18 +27,15 @@ const CONSTELLATIONS = [
     id: 'ursa',
     name: '北斗七星',
     en: 'URSA MAJOR',
-    accent: '#d8b8ff',
-    cx: 0.18,
-    cy: 0.22,
-    scale: 0.85,
+    accent: '#a88fd6',
     stars: [
-      { x: -0.05, y: 0.02, r: 1.5 },
-      { x: -0.03, y: 0.04, r: 1.4 },
-      { x: 0, y: 0.025, r: 1.3 },
-      { x: 0.025, y: 0, r: 1.4 },
-      { x: 0.05, y: -0.02, r: 1.5 },
-      { x: 0.08, y: -0.04, r: 1.4 },
-      { x: 0.11, y: -0.06, r: 1.6 },
+      { x: -0.40, y: -0.18, r: 2.0 },
+      { x: -0.24, y: -0.08, r: 1.8 },
+      { x: -0.06, y: -0.16, r: 1.7 },
+      { x: 0.08, y: 0.02, r: 1.8 },
+      { x: 0.24, y: 0.10, r: 2.0 },
+      { x: 0.40, y: 0.22, r: 1.8 },
+      { x: 0.56, y: 0.36, r: 2.2 },
     ],
     lines: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6]],
   },
@@ -49,59 +43,68 @@ const CONSTELLATIONS = [
     id: 'cassiopeia',
     name: '仙后座',
     en: 'CASSIOPEIA',
-    accent: '#ffb8d0',
-    cx: 0.82,
-    cy: 0.74,
-    scale: 0.8,
+    accent: '#c9768e',
     stars: [
-      { x: -0.07, y: 0, r: 1.5 },
-      { x: -0.035, y: -0.05, r: 1.6 },
-      { x: 0, y: 0, r: 1.4 },
-      { x: 0.035, y: -0.05, r: 1.6 },
-      { x: 0.07, y: 0, r: 1.5 },
+      { x: -0.40, y: 0.04, r: 2.0 },
+      { x: -0.18, y: -0.36, r: 2.2 },
+      { x: 0, y: 0, r: 1.9 },
+      { x: 0.18, y: -0.36, r: 2.2 },
+      { x: 0.40, y: 0.04, r: 2.0 },
     ],
     lines: [[0, 1], [1, 2], [2, 3], [3, 4]],
   },
+  {
+    id: 'lyra',
+    name: '天琴座',
+    en: 'LYRA',
+    accent: '#c9bf76',
+    stars: [
+      { x: 0, y: -0.48, r: 3.0 }, // Vega
+      { x: -0.18, y: -0.12, r: 1.7 },
+      { x: 0.18, y: -0.12, r: 1.7 },
+      { x: -0.14, y: 0.30, r: 1.7 },
+      { x: 0.14, y: 0.30, r: 1.7 },
+    ],
+    lines: [[0, 1], [0, 2], [1, 3], [2, 4], [3, 4]],
+  },
+  {
+    id: 'pleiades',
+    name: '昴宿星团',
+    en: 'PLEIADES',
+    accent: '#8fd694',
+    stars: [
+      { x: -0.18, y: -0.20, r: 1.6 },
+      { x: -0.08, y: -0.08, r: 2.0 },
+      { x: 0.02, y: -0.14, r: 1.4 },
+      { x: 0.12, y: -0.04, r: 1.8 },
+      { x: 0.02, y: 0.04, r: 1.2 },
+      { x: 0.10, y: 0.14, r: 1.6 },
+      { x: -0.10, y: 0.12, r: 1.4 },
+      { x: 0.20, y: 0.08, r: 1.4 },
+      { x: -0.04, y: 0.24, r: 1.1 },
+    ],
+    lines: [[0, 1], [1, 2], [2, 3], [3, 5], [5, 6], [6, 4], [4, 1], [5, 7], [6, 8]],
+  },
 ]
 
-/* 真实星云纹理：NASA/哈勃风格的彩色丝缕星云。可替换为本地图片。 */
+const N = CONSTELLATIONS.length
+
+/* 真实星云纹理（氛围层，调暗） */
 const NEBULA_TEXTURES = [
   {
     id: 'neb-main',
-    // 经典蟹状/船底座风格星云 (Unsplash，可替换成本地资源)
     url: 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=2400&q=80',
     cx: 0.5,
-    cy: 0.45,
-    scale: 1.25,
-    opacity: 0.55,
-    hue: 0,
-    saturate: 1.25,
-  },
-  {
-    id: 'neb-side',
-    // 猎户/玫瑰星云风格
-    url: 'https://images.unsplash.com/photo-1543722530-d2c3201371e7?w=2000&q=80',
-    cx: 0.12,
-    cy: 0.7,
-    scale: 0.9,
+    cy: 0.5,
+    scale: 1.4,
     opacity: 0.35,
-    hue: -15,
-    saturate: 1.1,
-  },
-  {
-    id: 'neb-top',
-    url: 'https://images.unsplash.com/photo-1506318137071-a8bcbf6755dd?w=2000&q=80',
-    cx: 0.88,
-    cy: 0.18,
-    scale: 0.8,
-    opacity: 0.3,
-    hue: 30,
-    saturate: 1.2,
+    hue: 0,
+    saturate: 1.15,
   },
 ]
 
 /* 深空背景星点 */
-const STARS = Array.from({ length: 160 }, (_, i) => {
+const STARS = Array.from({ length: 140 }, (_, i) => {
   const layer = i % 3
   return {
     id: i,
@@ -117,17 +120,28 @@ const STARS = Array.from({ length: 160 }, (_, i) => {
 const METEORS = Array.from({ length: 2 }, (_, i) => ({
   id: `m-${i}`,
   top: 5 + Math.random() * 50,
-  delay: i * 12 + Math.random() * 6,
+  delay: i * 14 + Math.random() * 6,
   duration: 1.4 + Math.random() * 0.8,
   length: 100 + Math.random() * 80,
 }))
 
 export default function CyberBackground() {
+  const { scrollYProgress } = useScroll()
+  const smoothProgress = useSpring(scrollYProgress, {
+    stiffness: 55,
+    damping: 22,
+    mass: 0.8,
+  })
+
+  // 星轨总高度：每个星座占 100vh，滚动 0~1 对应星轨从第一个移到最后一个
+  // translateY 从 0 移到 -(N-1) * slotHeight
+  const slotHeight = 100 // vh
+  const trackY = useTransform(smoothProgress, [0, 1], [0, -(N - 1) * slotHeight])
+
   const offsetFar = useParallax(0.04, { max: 30 })
   const offsetMid = useParallax(0.1, { max: 70 })
   const offsetNear = useParallax(0.18, { max: 130 })
-  const offsetConst = useParallax(0.08, { max: 50 })
-  const offsetNeb = useParallax(0.03, { max: 20 })
+  const offsetNeb = useParallax(0.02, { max: 15 })
 
   return (
     <div
@@ -135,20 +149,17 @@ export default function CyberBackground() {
       aria-hidden="true"
       style={{ background: 'var(--bg-base)' }}
     >
-      {/* 1. 深空底色 + 细微星光噪点 */}
+      {/* 1. 深空底色 */}
       <div
         className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(ellipse at 50% 45%, #0c0a24 0%, #050514 50%, #020207 100%)',
+            'radial-gradient(ellipse at 50% 50%, #0c0a24 0%, #050514 50%, #020207 100%)',
         }}
       />
 
-      {/* 2. 真实星云纹理层（最远，最慢视差） */}
-      <motion.div
-        className="absolute inset-0"
-        style={{ y: offsetNeb }}
-      >
+      {/* 2. 星云纹理层（氛围，很暗） */}
+      <motion.div className="absolute inset-0" style={{ y: offsetNeb }}>
         {NEBULA_TEXTURES.map((n) => (
           <NebulaImage key={n.id} n={n} />
         ))}
@@ -157,28 +168,33 @@ export default function CyberBackground() {
       {/* 3. 远景星点 */}
       <motion.div className="absolute inset-0" style={{ y: offsetFar }}>
         {STARS.filter((s) => s.layer === 0).map((s) => (
-          <Star key={s.id} s={s} opacity={0.35} />
+          <Star key={s.id} s={s} opacity={0.3} />
         ))}
       </motion.div>
 
       {/* 4. 中景星点 */}
       <motion.div className="absolute inset-0" style={{ y: offsetMid }}>
         {STARS.filter((s) => s.layer === 1).map((s) => (
-          <Star key={s.id} s={s} opacity={0.65} />
+          <Star key={s.id} s={s} opacity={0.55} />
         ))}
       </motion.div>
 
-      {/* 5. 星座层（藏在星云里） */}
-      <motion.div className="absolute inset-0" style={{ y: offsetConst }}>
-        {CONSTELLATIONS.map((c) => (
-          <Constellation key={c.id} c={c} />
-        ))}
-      </motion.div>
+      {/* 5. 星座星轨 —— 垂直排列，滚动时从上往下经过中央 */}
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden">
+        <motion.div
+          className="relative flex flex-col items-center justify-start"
+          style={{ y: trackY, width: '100vmin', height: `${N * slotHeight}vh` }}
+        >
+          {CONSTELLATIONS.map((c, i) => (
+            <ConstellationSlot key={c.id} c={c} index={i} progress={smoothProgress} total={N} />
+          ))}
+        </motion.div>
+      </div>
 
       {/* 6. 近景星点 */}
       <motion.div className="absolute inset-0" style={{ y: offsetNear }}>
         {STARS.filter((s) => s.layer === 2).map((s) => (
-          <Star key={s.id} s={s} opacity={1} bright />
+          <Star key={s.id} s={s} opacity={0.9} bright />
         ))}
       </motion.div>
 
@@ -194,7 +210,7 @@ export default function CyberBackground() {
             duration: m.duration,
             delay: m.delay,
             repeat: Infinity,
-            repeatDelay: 12 + Math.random() * 8,
+            repeatDelay: 14 + Math.random() * 8,
             ease: 'easeIn',
           }}
         >
@@ -213,12 +229,12 @@ export default function CyberBackground() {
         </motion.div>
       ))}
 
-      {/* 8. 暗角（让中间内容可读） */}
+      {/* 8. 暗角 */}
       <div
         className="absolute inset-0"
         style={{
           background:
-            'linear-gradient(180deg, rgba(2,2,7,0.45) 0%, transparent 22%, transparent 78%, rgba(2,2,7,0.8) 100%)',
+            'linear-gradient(180deg, rgba(2,2,7,0.55) 0%, transparent 22%, transparent 78%, rgba(2,2,7,0.85) 100%)',
         }}
       />
     </div>
@@ -236,7 +252,7 @@ function Star({ s, opacity, bright }) {
         top: `${s.y * 100}%`,
         width: s.size,
         height: s.size,
-        boxShadow: bright ? `0 0 4px #fff, 0 0 10px rgba(0,240,255,0.35)` : 'none',
+        boxShadow: bright ? `0 0 4px #fff, 0 0 10px rgba(0,240,255,0.3)` : 'none',
       }}
       animate={{ opacity: [opacity * 0.3, opacity, opacity * 0.3] }}
       transition={{
@@ -256,10 +272,8 @@ function NebulaImage({ n }) {
       style={{
         left: `${n.cx * 100}%`,
         top: `${n.cy * 100}%`,
-        width: `${n.scale * 100}vw`,
-        height: `${n.scale * 100}vw`,
-        minWidth: `${n.scale * 100}vh`,
-        minHeight: `${n.scale * 100}vh`,
+        width: `${n.scale * 100}vmin`,
+        height: `${n.scale * 100}vmin`,
         transform: 'translate(-50%, -50%)',
         opacity: n.opacity,
         mixBlendMode: 'screen',
@@ -269,7 +283,7 @@ function NebulaImage({ n }) {
         rotate: [0, 1, 0],
       }}
       transition={{
-        duration: 40 + Math.random() * 20,
+        duration: 50,
         repeat: Infinity,
         ease: 'easeInOut',
       }}
@@ -279,9 +293,9 @@ function NebulaImage({ n }) {
         alt=""
         className="h-full w-full object-cover"
         style={{
-          filter: `hue-rotate(${n.hue}deg) saturate(${n.saturate}) brightness(0.85) contrast(1.1)`,
-          maskImage: 'radial-gradient(circle, #000 30%, transparent 80%)',
-          WebkitMaskImage: 'radial-gradient(circle, #000 30%, transparent 80%)',
+          filter: `hue-rotate(${n.hue}deg) saturate(${n.saturate}) brightness(0.7) contrast(1.05)`,
+          maskImage: 'radial-gradient(circle, #000 25%, transparent 75%)',
+          WebkitMaskImage: 'radial-gradient(circle, #000 25%, transparent 75%)',
         }}
         loading="eager"
         crossOrigin="anonymous"
@@ -290,80 +304,101 @@ function NebulaImage({ n }) {
   )
 }
 
-function Constellation({ c }) {
+function ConstellationSlot({ c, index, progress, total }) {
+  // 根据当前滚动位置计算该星座距离中央的距离：
+  // 0 表示正好在中央最清晰；>=1 表示被上下相邻星座覆盖，很淡。
+  const fadeOpacity = useTransform(progress, (v) => {
+    const current = v * (total - 1)
+    const dist = Math.abs(current - index)
+    const clamped = Math.min(dist, 1.5)
+    return Math.max(0.06, 1 - clamped * 0.78)
+  })
+
+  const scale = useTransform(progress, (v) => {
+    const current = v * (total - 1)
+    const dist = Math.abs(current - index)
+    return 0.85 + Math.max(0, 1 - dist) * 0.15
+  })
+
   return (
     <motion.div
-      className="absolute"
+      className="relative flex items-center justify-center"
       style={{
-        left: `${c.cx * 100}%`,
-        top: `${c.cy * 100}%`,
-        transform: 'translate(-50%, -50%)',
+        height: '100vh',
+        width: '100vmin',
+        opacity: fadeOpacity,
+        scale,
       }}
     >
-      <svg
-        width={c.scale * 260}
-        height={c.scale * 260}
-        viewBox="-0.5 -0.5 1 1"
-        style={{ overflow: 'visible' }}
-      >
-        {/* 极淡的发光底 */}
-        <circle
-          cx="0"
-          cy="0"
-          r="0.18"
-          fill={c.accent}
-          opacity={0.04}
-          style={{ filter: 'blur(0.04px)' }}
-        />
-
-        {/* 连线 —— 很细，半隐半现，像星云里的"尘埃连线" */}
-        {c.lines.map(([a, b], i) => {
-          const sa = c.stars[a]
-          const sb = c.stars[b]
-          return (
-            <motion.line
-              key={i}
-              x1={sa.x}
-              y1={sa.y}
-              x2={sb.x}
-              y2={sb.y}
-              stroke={c.accent}
-              strokeWidth={0.0025}
-              strokeOpacity={0.28}
-              initial={{ pathLength: 0, opacity: 0 }}
-              animate={{ pathLength: 1, opacity: 0.28 }}
-              transition={{ duration: 2, delay: 0.5 + i * 0.12 }}
-              style={{ filter: `drop-shadow(0 0 0.008px ${c.accent})` }}
-            />
-          )
-        })}
-
-        {/* 星点 —— 很小，像星云里的亮星 */}
-        {c.stars.map((s, i) => (
-          <motion.g
-            key={i}
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{
-              delay: 0.3 + i * 0.1,
-              type: 'spring',
-              stiffness: 200,
-              damping: 16,
-            }}
-          >
-            <circle
-              cx={s.x}
-              cy={s.y}
-              r={s.r * 0.010}
-              fill={c.accent}
-              opacity={0.2}
-              style={{ filter: 'blur(0.008px)' }}
-            />
-            <circle cx={s.x} cy={s.y} r={s.r * 0.005} fill="#fff" />
-            <circle cx={s.x} cy={s.y} r={s.r * 0.0025} fill={c.accent} />
-          </motion.g>
-        ))}
-      </svg>
+      <ConstellationSvg c={c} />
     </motion.div>
+  )
+}
+
+function ConstellationSvg({ c }) {
+  return (
+    <svg
+      width="100%"
+      height="100%"
+      viewBox="-0.65 -0.65 1.3 1.3"
+      style={{ overflow: 'visible' }}
+    >
+      {/* 极淡的发光底，让星座有"嵌在星云里"的朦胧感 */}
+      <circle
+        cx="0"
+        cy="0"
+        r="0.35"
+        fill={c.accent}
+        opacity={0.03}
+        style={{ filter: 'blur(0.08px)' }}
+      />
+
+      {/* 连线 —— 很细、半透明 */}
+      {c.lines.map(([a, b], i) => {
+        const sa = c.stars[a]
+        const sb = c.stars[b]
+        return (
+          <motion.line
+            key={i}
+            x1={sa.x}
+            y1={sa.y}
+            x2={sb.x}
+            y2={sb.y}
+            stroke={c.accent}
+            strokeWidth={0.003}
+            strokeOpacity={0.22}
+            initial={{ pathLength: 0, opacity: 0 }}
+            animate={{ pathLength: 1, opacity: 0.22 }}
+            transition={{ duration: 2, delay: 0.4 + i * 0.1 }}
+          />
+        )
+      })}
+
+      {/* 星点 —— 小、低对比，不抢眼 */}
+      {c.stars.map((s, i) => (
+        <motion.g
+          key={i}
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{
+            delay: 0.25 + i * 0.08,
+            type: 'spring',
+            stiffness: 200,
+            damping: 18,
+          }}
+        >
+          <circle
+            cx={s.x}
+            cy={s.y}
+            r={s.r * 0.012}
+            fill={c.accent}
+            opacity={0.18}
+            style={{ filter: 'blur(0.01px)' }}
+          />
+          <circle cx={s.x} cy={s.y} r={s.r * 0.006} fill="#fff" opacity={0.65} />
+          <circle cx={s.x} cy={s.y} r={s.r * 0.003} fill={c.accent} opacity={0.8} />
+        </motion.g>
+      ))}
+    </svg>
   )
 }
