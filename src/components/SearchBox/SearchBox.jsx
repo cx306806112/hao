@@ -7,7 +7,7 @@ import EngineTabs from './EngineTabs'
 
 /**
  * 主搜索框：
- * - 可切换 12 个搜索引擎（Tab + layoutId 滑块）
+ * - 可切换搜索引擎（Tab + layoutId 滑块）
  * - 切换时图标 / placeholder crossfade
  * - 快捷键：/ 聚焦、Ctrl+K 唤起、Enter 跳转
  * - 记忆上次选择的引擎（localStorage）
@@ -79,31 +79,41 @@ export default function SearchBox() {
           boxShadow: `0 0 30px ${engine.color}22, inset 0 0 16px rgba(0,0,0,0.3)`,
         }}
       >
-        {/* 引擎图标徽章 */}
+        {/* 引擎图标徽章 —— 显示 favicon */}
         <AnimatePresence mode="wait">
           <motion.span
             key={engine.id}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-bold text-[var(--bg-base)]"
+            className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg"
             style={{
-              background: engine.color,
-              boxShadow: `0 0 16px ${engine.color}88`,
+              background: `${engine.color}22`,
+              boxShadow: `0 0 16px ${engine.color}44`,
+              border: `1px solid ${engine.color}55`,
             }}
             initial={{ scale: 0.6, opacity: 0, rotate: -20 }}
             animate={{ scale: 1, opacity: 1, rotate: 0 }}
             exit={{ scale: 0.6, opacity: 0, rotate: 20 }}
             transition={{ duration: 0.2 }}
           >
-            {engine.glyph}
+            {engine.favicon && (
+              <img
+                src={engine.favicon}
+                alt=""
+                className="h-6 w-6 object-contain"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none'
+                }}
+              />
+            )}
           </motion.span>
         </AnimatePresence>
 
-        {/* input + placeholder crossfade */}
+        {/* input + placeholder crossfade —— placeholder 居中 */}
         <div className="relative flex-1">
           <AnimatePresence mode="wait">
             {!query && (
               <motion.span
                 key={engine.id}
-                className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 font-mono text-sm text-ink-faint"
+                className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 text-center font-mono text-sm text-ink-faint"
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
@@ -123,7 +133,7 @@ export default function SearchBox() {
                 cycleEngine(e.shiftKey ? -1 : 1)
               }
             }}
-            className="w-full bg-transparent font-mono text-base text-ink outline-none placeholder:text-transparent"
+            className="w-full bg-transparent text-center font-mono text-base text-ink outline-none placeholder:text-transparent"
             aria-label="搜索输入"
             autoComplete="off"
             spellCheck={false}

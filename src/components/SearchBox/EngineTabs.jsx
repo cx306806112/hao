@@ -3,7 +3,7 @@ import { searchEngines } from '../../data/searchEngines'
 
 /**
  * 搜索引擎 Tab 列表：layoutId 滑块平滑跟随。
- * 横向可滚动，移动端友好。
+ * 使用站点 favicon 图标，横向可滚动，移动端友好。
  */
 export default function EngineTabs({ activeId, onSelect }) {
   return (
@@ -31,24 +31,39 @@ export default function EngineTabs({ activeId, onSelect }) {
               <motion.span
                 layoutId="enginePill"
                 className="absolute inset-0 -z-10 rounded-md"
-                style={{ background: eng.color, boxShadow: `0 0 16px ${eng.color}` }}
+                style={{ background: eng.color, boxShadow: `0 0 16px ${eng.color}88` }}
                 transition={{ type: 'spring', stiffness: 380, damping: 32 }}
               />
             )}
-            <span
-              className="flex h-4 w-4 items-center justify-center rounded-sm text-[10px] font-bold"
-              style={{
-                background: active ? 'rgba(0,0,0,0.25)' : `${eng.color}22`,
-                color: active ? '#fff' : eng.color,
-                border: active ? 'none' : `1px solid ${eng.color}55`,
-              }}
-            >
-              {eng.glyph}
-            </span>
+            <EngineIcon eng={eng} active={active} />
             <span>{eng.name}</span>
           </button>
         )
       })}
     </div>
+  )
+}
+
+/* 引擎图标：显示 favicon，失败则不显示 */
+function EngineIcon({ eng, active }) {
+  return (
+    <span
+      className="flex h-4 w-4 shrink-0 items-center justify-center overflow-hidden rounded-sm"
+      style={{
+        background: active ? 'rgba(0,0,0,0.15)' : 'transparent',
+      }}
+    >
+      {eng.favicon && (
+        <img
+          src={eng.favicon}
+          alt=""
+          className="h-3.5 w-3.5 object-contain"
+          loading="lazy"
+          onError={(e) => {
+            e.currentTarget.style.display = 'none'
+          }}
+        />
+      )}
+    </span>
   )
 }

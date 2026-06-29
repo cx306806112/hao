@@ -3,6 +3,12 @@ import Particles, { ParticlesProvider, useParticlesProvider } from '@tsparticles
 import { loadSlim } from '@tsparticles/slim'
 import { useScroll, useSpring, useTransform, motion } from 'motion/react'
 
+/* 读取当前主题的 CSS 变量值 */
+function cssVar(name) {
+  if (typeof window === 'undefined') return ''
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+}
+
 /* ============================================================
    滚动联动的星空粒子背景
    - tsparticles 渲染深空星点 + 近邻连线（伪星座）+ 漂浮星尘
@@ -59,12 +65,22 @@ export default function CyberBackground() {
 function BackgroundInner() {
   const { loaded } = useParticlesProvider()
   const [theme, setTheme] = useState(themeAt(0))
+  const [isLight, setIsLight] = useState(false)
 
   const { scrollYProgress } = useScroll()
   const smooth = useSpring(scrollYProgress, { stiffness: 60, damping: 25, mass: 0.8 })
 
   // 整体视差上移（最大 80px）
   const parallaxY = useTransform(smooth, [0, 1], [0, -80])
+
+  // 检测主题变化
+  useEffect(() => {
+    const check = () => setIsLight(document.documentElement.classList.contains('theme-light'))
+    check()
+    const observer = new MutationObserver(check)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+    return () => observer.disconnect()
+  }, [])
 
   // 监听滚动进度，更新主题色（节流到 ~30fps）
   useEffect(() => {
@@ -76,6 +92,9 @@ function BackgroundInner() {
     return () => { unsub(); cancelAnimationFrame(raf) }
   }, [smooth])
 
+  const particleColor = isLight ? '#4a5578' : '#ffffff'
+  const linkOpacity = isLight ? 0.1 : 0.18
+
   const options = useMemo(() => ({
     fullScreen: { enable: false },
     background: { color: 'transparent' },
@@ -83,17 +102,17 @@ function BackgroundInner() {
     detectRetina: true,
     particles: {
       number: {
-        value: 220,
+        value: isLight ? 120 : 220,
         density: { enable: true, area: 1200 },
       },
-      color: { value: [theme.primary, theme.secondary, '#ffffff'] },
+      color: { value: isLight ? [particleColor, theme.primary, theme.secondary] : [theme.primary, theme.secondary, particleColor] },
       shape: { type: 'circle' },
       opacity: {
-        value: { min: 0.15, max: 0.9 },
+        value: { min: 0.1, max: isLight ? 0.5 : 0.9 },
         animation: { enable: true, speed: 0.6, sync: false },
       },
       size: {
-        value: { min: 0.4, max: 2.2 },
+        value: { min: 0.4, max: 2.0 },
         animation: { enable: true, speed: 1.2, sync: false },
       },
       move: {
@@ -104,18 +123,16 @@ function BackgroundInner() {
         outModes: { default: 'out' },
         random: true,
       },
-      // 近邻连线 —— 伪星座效果，颜色随主题变
       links: {
         enable: true,
         distance: 130,
         color: theme.primary,
-        opacity: 0.18,
+        opacity: linkOpacity,
         width: 0.6,
         triangles: { enable: false },
       },
-      // 星点辉光
       shadow: {
-        enable: true,
+        enable: !isLight,
         color: theme.primary,
         blur: 4,
       },
@@ -131,7 +148,12 @@ function BackgroundInner() {
         },
       },
     },
-  }), [theme.primary, theme.secondary])
+  }), [theme.primary, theme.secondary, isLight, particleColor, linkOpacity])
+
+  // 背景渐变
+  const spaceGradient = isLight
+    ? 'radial-gradient(ellipse at 50% 45%, var(--space-grad-inner) 0%, var(--space-grad-mid) 50%, var(--space-grad-outer) 100%)'
+    : 'radial-gradient(ellipse at 50% 45%, var(--space-grad-inner) 0%, var(--space-grad-mid) 50%, var(--space-grad-outer) 100%)'
 
   return (
     <div
@@ -139,21 +161,18 @@ function BackgroundInner() {
       aria-hidden="true"
       style={{ background: 'var(--bg-base)' }}
     >
-      {/* 1. 深空底色 */}
+      {/* 1. 背景渐变 */}
       <div
         className="absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(ellipse at 50% 45%, #0c0a24 0%, #050514 50%, #020207 100%)',
-        }}
+        style={{ background: spaceGradient }}
       />
 
-      {/* 2. 星云光晕 —— 大块径向渐变，颜色随滚动主题变 */}
+      {/* 2. 星云光晕 */}
       <motion.div
         className="absolute inset-0"
         style={{ y: parallaxY }}
       >
-        <Nebula theme={theme} />
+        <Nebula theme={theme} isLight={isLight} />
       </motion.div>
 
       {/* 3. 粒子星点 + 近邻连线 */}
@@ -170,16 +189,15 @@ function BackgroundInner() {
         )}
       </motion.div>
 
-      {/* 4. 顶部 / 底部暗角保证内容可读 */}
+      {/* 4. 顶部 / 底部暗角 */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background:
-            'linear-gradient(180deg, rgba(2,2,7,0.55) 0%, transparent 22%, transparent 78%, rgba(2,2,7,0.85) 100%)',
+          background: `linear-gradient(180deg, var(--vignette-top) 0%, transparent 22%, transparent 78%, var(--vignette-bottom) 100%)`,
         }}
       />
 
-      {/* 5. 右下角当前星域指示（极简 HUD） */}
+      {/* 5. 右下角当前星域指示 */}
       <div className="absolute bottom-4 right-5 pointer-events-none font-mono text-[10px] tracking-[0.2em] text-white/30">
         <span style={{ color: theme.primary }}>●</span>{' '}
         SECTOR {String(theme.index + 1).padStart(2, '0')}/{String(THEMES.length).padStart(2, '0')}
@@ -188,8 +206,9 @@ function BackgroundInner() {
   )
 }
 
-/* 星云：3 块大径向渐变叠加，颜色随主题变 */
-function Nebula({ theme }) {
+/* 星云：3 块大径向渐变叠加 */
+function Nebula({ theme, isLight }) {
+  const opacityMult = isLight ? 0.3 : 1
   return (
     <>
       <div
@@ -198,9 +217,10 @@ function Nebula({ theme }) {
           left: '20%', top: '15%',
           width: '70vmin', height: '70vmin',
           transform: 'translate(-50%, -50%)',
-          background: `radial-gradient(circle, ${theme.nebula}55 0%, ${theme.nebula}22 30%, transparent 70%)`,
+          background: `radial-gradient(circle, ${theme.nebula}${isLight ? '22' : '55'} 0%, ${theme.nebula}${isLight ? '11' : '22'} 30%, transparent 70%)`,
           filter: 'blur(40px)',
           mixBlendMode: 'screen',
+          opacity: opacityMult,
         }}
       />
       <div
@@ -209,9 +229,10 @@ function Nebula({ theme }) {
           left: '78%', top: '60%',
           width: '60vmin', height: '60vmin',
           transform: 'translate(-50%, -50%)',
-          background: `radial-gradient(circle, ${theme.primary}44 0%, ${theme.primary}11 40%, transparent 75%)`,
+          background: `radial-gradient(circle, ${theme.primary}${isLight ? '22' : '44'} 0%, ${theme.primary}${isLight ? '08' : '11'} 40%, transparent 75%)`,
           filter: 'blur(50px)',
           mixBlendMode: 'screen',
+          opacity: opacityMult,
         }}
       />
       <div
@@ -220,9 +241,10 @@ function Nebula({ theme }) {
           left: '50%', top: '85%',
           width: '50vmin', height: '50vmin',
           transform: 'translate(-50%, -50%)',
-          background: `radial-gradient(circle, ${theme.secondary}33 0%, transparent 70%)`,
+          background: `radial-gradient(circle, ${theme.secondary}${isLight ? '1a' : '33'} 0%, transparent 70%)`,
           filter: 'blur(45px)',
           mixBlendMode: 'screen',
+          opacity: opacityMult,
         }}
       />
     </>

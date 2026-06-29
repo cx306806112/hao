@@ -31,32 +31,52 @@
 
   --scan-opacity: 0.06;
   --noise-opacity: 0.04;
+
+  /* 深空背景渐变 */
+  --space-grad-inner: #0c0a24;
+  --space-grad-mid: #050514;
+  --space-grad-outer: #020207;
+  /* 粒子颜色 */
+  --particle-color: #ffffff;
+  --particle-link-opacity: 0.18;
+  --vignette-top: rgba(2, 2, 7, 0.55);
+  --vignette-bottom: rgba(2, 2, 7, 0.85);
 }
 
 html.theme-light {
-  --bg-base: #eef1fb;
+  --bg-base: #f0f2f8;
   --bg-elev: #ffffff;
-  --bg-glass: rgba(255, 255, 255, 0.55);
-  --bg-glass-strong: rgba(255, 255, 255, 0.82);
+  --bg-glass: rgba(255, 255, 255, 0.65);
+  --bg-glass-strong: rgba(255, 255, 255, 0.85);
 
-  --neon-cyan: #0090b0;
-  --neon-magenta: #c01a52;
-  --neon-purple: #7b3fd6;
-  --neon-yellow: #b07a00;
-  --neon-green: #1f8a0a;
+  --neon-cyan: #0891b2;
+  --neon-magenta: #be185d;
+  --neon-purple: #7c3aed;
+  --neon-yellow: #ca8a04;
+  --neon-green: #16a34a;
 
-  --text-primary: #11162b;
-  --text-muted: #4a5278;
-  --text-faint: #8b93b5;
+  --text-primary: #1a1f36;
+  --text-muted: #5b6478;
+  --text-faint: #9ca3b8;
 
-  --grid-line: rgba(0, 144, 176, 0.16);
-  --grid-line-strong: rgba(0, 144, 176, 0.32);
-  --border-glow: rgba(0, 144, 176, 0.4);
-  --shadow-cyan: 0 0 24px rgba(0, 144, 176, 0.25);
-  --shadow-magenta: 0 0 24px rgba(192, 26, 82, 0.25);
+  --grid-line: rgba(8, 145, 178, 0.14);
+  --grid-line-strong: rgba(8, 145, 178, 0.28);
+  --border-glow: rgba(8, 145, 178, 0.35);
+  --shadow-cyan: 0 0 24px rgba(8, 145, 178, 0.18);
+  --shadow-magenta: 0 0 24px rgba(190, 24, 93, 0.18);
 
-  --scan-opacity: 0.04;
-  --noise-opacity: 0.025;
+  --scan-opacity: 0.025;
+  --noise-opacity: 0.015;
+
+  /* 浅色模式：柔和的天空渐变 */
+  --space-grad-inner: #dbe4f0;
+  --space-grad-mid: #c8d4e8;
+  --space-grad-outer: #b8c8de;
+  /* 粒子颜色用深色，在浅背景上可见 */
+  --particle-color: #4a5578;
+  --particle-link-opacity: 0.12;
+  --vignette-top: rgba(180, 195, 220, 0.4);
+  --vignette-bottom: rgba(180, 195, 220, 0.6);
 }
 
 * {
