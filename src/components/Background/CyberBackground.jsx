@@ -2,32 +2,53 @@ import { useMemo } from 'react'
 import { motion, useScroll, useSpring, useTransform } from 'motion/react'
 
 /* ============================================================
-   俯瞰海洋背景：鲸鱼 + 小鱼群 + 焦散光纹
-   - 滚动时鱼群整体上移（模拟下潜，鱼往上游）
-   - 亮色=白天浅海，暗色=夜晚深海（鱼带生物发光）
+   俯瞰真实海洋背景：真实鱼图（鱼头朝上）+ 焦散光纹
+   - 向下滚动时鱼群整体上移（鱼往上游）
+   - 亮色=白天浅海，暗色=夜晚深海
    ============================================================ */
 
-// 鲸鱼：大块头，缓慢横游
-const WHALES = [
-  { id: 'w1', baseY: 35, scale: 1.2, duration: 80, delay: 0, dir: 1 },
-  { id: 'w2', baseY: 62, scale: 0.9, duration: 95, delay: -30, dir: -1 },
-  { id: 'w3', baseY: 88, scale: 1.0, duration: 110, delay: -60, dir: 1 },
+// 图片生成 API：生成俯瞰鱼图，鱼头朝上
+const IMG_API = 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image'
+const fishImgUrl = (prompt, size = 'portrait_4_3') =>
+  `${IMG_API}?prompt=${encodeURIComponent(prompt)}&image_size=${size}`
+
+// 真实鲸鱼图（俯瞰，鱼头朝上）
+const WHALE_IMG = fishImgUrl(
+  'aerial top-down view of a humpback whale swimming upward, viewed from directly above, whale head pointing to top of image, dark blue whale body with white markings, deep blue ocean water background, photorealistic, centered, dorsal view',
+  'portrait_4_3',
+)
+// 真实小鱼图（俯瞰，鱼头朝上）
+const FISH_IMG = fishImgUrl(
+  'aerial top-down view of a small tropical fish swimming upward, viewed from directly above, fish head pointing to top of image, silver and blue striped fish, turquoise clear ocean water background, photorealistic, centered, dorsal view',
+  'portrait_4_3',
+)
+// 真实鳐鱼/蝠鲼图（俯瞰，鱼头朝上）—— 增加多样性
+const MANTA_IMG = fishImgUrl(
+  'aerial top-down view of a manta ray gliding upward, viewed from directly above, head pointing to top of image, dark black ray with white belly visible, deep blue ocean water, photorealistic, centered, dorsal view',
+  'portrait_4_3',
+)
+
+// 鲸鱼/蝠鲼：大块头，缓慢向上游
+const BIG_FISH = [
+  { id: 'b1', baseX: 20, baseY: 30, scale: 1.0, duration: 90, delay: 0, img: WHALE_IMG },
+  { id: 'b2', baseX: 65, baseY: 55, scale: 1.1, duration: 100, delay: -40, img: MANTA_IMG },
+  { id: 'b3', baseX: 35, baseY: 80, scale: 0.9, duration: 85, delay: -20, img: WHALE_IMG },
 ]
 
-// 小鱼群：每群一群小鱼，较快移动
+// 小鱼群：每群一群小鱼
 const FISH_SCHOOLS = [
-  { id: 's1', baseY: 18, count: 14, scale: 1, duration: 35, delay: 0, dir: 1, spread: 60 },
-  { id: 's2', baseY: 45, count: 10, scale: 0.8, duration: 45, delay: -15, dir: -1, spread: 50 },
-  { id: 's3', baseY: 72, count: 16, scale: 0.9, duration: 40, delay: -25, dir: 1, spread: 70 },
-  { id: 's4', baseY: 95, count: 12, scale: 0.7, duration: 50, delay: -8, dir: -1, spread: 55 },
+  { id: 's1', baseX: 50, baseY: 15, count: 8, scale: 1, duration: 30, delay: 0, spread: 80 },
+  { id: 's2', baseX: 25, baseY: 42, count: 6, scale: 0.85, duration: 38, delay: -12, spread: 70 },
+  { id: 's3', baseX: 75, baseY: 68, count: 10, scale: 0.9, duration: 35, delay: -20, spread: 90 },
+  { id: 's4', baseX: 40, baseY: 92, count: 7, scale: 0.75, duration: 42, delay: -8, spread: 60 },
 ]
 
 export default function CyberBackground() {
   const { scrollYProgress } = useScroll()
   const smooth = useSpring(scrollYProgress, { stiffness: 50, damping: 28, mass: 0.9 })
 
-  // 鱼群整体随滚动上移（下潜感）—— 滚到底时上移一屏多
-  const fishY = useTransform(smooth, [0, 1], [0, -1200])
+  // 鱼群整体随滚动上移（下潜感，鱼往上游）
+  const fishY = useTransform(smooth, [0, 1], [0, -1100])
 
   return (
     <div
@@ -36,44 +57,36 @@ export default function CyberBackground() {
       style={{ background: 'var(--bg-base)' }}
     >
       {/* 1. 海洋深度渐变（俯瞰，从浅到深） */}
-      <motion.div
+      <div
         className="absolute inset-0"
-        style={{ filter: 'brightness(var(--ocean-brightness, 1))' }}
-      >
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'linear-gradient(180deg, var(--ocean-grad-top) 0%, var(--ocean-grad-mid) 40%, var(--ocean-grad-bottom) 100%)',
-          }}
-        />
-      </motion.div>
+        style={{
+          background:
+            'linear-gradient(180deg, var(--ocean-grad-top) 0%, var(--ocean-grad-mid) 40%, var(--ocean-grad-bottom) 100%)',
+        }}
+      />
 
       {/* 2. 焦散光纹（水面阳光透射的网状光斑） */}
       <Caustics />
 
-      {/* 3. 鱼群层（鲸鱼 + 小鱼）—— 随滚动上移 */}
+      {/* 3. 鱼群层 —— 鱼头朝上，向下滚动时鱼往上游 */}
       <motion.div
         className="absolute inset-0"
         style={{ y: fishY, height: '200%' }}
       >
-        {/* 鲸鱼 */}
-        {WHALES.map((w) => (
-          <Whale key={w.id} w={w} />
+        {BIG_FISH.map((b) => (
+          <BigFish key={b.id} b={b} />
         ))}
-        {/* 小鱼群 */}
         {FISH_SCHOOLS.map((s) => (
           <FishSchool key={s.id} s={s} />
         ))}
       </motion.div>
 
-      {/* 4. 水面光斑（顶部高光） */}
+      {/* 4. 水面顶部光斑 */}
       <div
         className="absolute inset-x-0 top-0 pointer-events-none"
         style={{
           height: '30vh',
-          background:
-            'linear-gradient(180deg, var(--ray-color) 0%, transparent 100%)',
+          background: 'linear-gradient(180deg, var(--ray-color) 0%, transparent 100%)',
         }}
       />
 
@@ -93,7 +106,6 @@ export default function CyberBackground() {
 function Caustics() {
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ opacity: 'var(--caustic-opacity, 0.4)' }}>
-      {/* 两层焦散纹理交叉漂动 */}
       <motion.div
         className="absolute inset-0"
         style={{
@@ -134,76 +146,68 @@ function Caustics() {
   )
 }
 
-/* ---------------- 鲸鱼（SVG 俯瞰剪影） ---------------- */
-function Whale({ w }) {
-  const startX = w.dir > 0 ? '-15%' : '115%'
-  const endX = w.dir > 0 ? '115%' : '-15%'
-
+/* ---------------- 大鱼（鲸鱼/蝠鲼，鱼头朝上） ---------------- */
+function BigFish({ b }) {
   return (
     <motion.div
       className="absolute"
-      style={{ top: `${w.baseY}%`, width: `${180 * w.scale}px`, height: `${80 * w.scale}px` }}
-      initial={{ x: startX }}
-      animate={{ x: [startX, endX] }}
+      style={{
+        left: `${b.baseX}%`,
+        top: `${b.baseY}%`,
+        width: `${200 * b.scale}px`,
+        height: `${260 * b.scale}px`,
+        transform: 'translate(-50%, -50%)',
+      }}
+      animate={{ y: ['0%', '-8%', '0%'], x: ['0%', '3%', '0%', '-3%', '0%'] }}
       transition={{
-        duration: w.duration,
-        delay: w.delay,
+        duration: b.duration,
+        delay: b.delay,
         repeat: Infinity,
-        ease: 'linear',
+        ease: 'easeInOut',
       }}
     >
-      <svg
-        viewBox="0 0 180 80"
-        className="h-full w-full"
+      <img
+        src={b.img}
+        alt=""
+        className="h-full w-full object-cover rounded-[40%]"
         style={{
-          transform: w.dir < 0 ? 'scaleX(-1)' : 'none',
-          filter: 'drop-shadow(0 8px 20px var(--fish-shadow, rgba(0,0,0,0.4)))',
+          filter: 'drop-shadow(0 10px 30px var(--fish-shadow)) brightness(var(--fish-brightness, 1))',
+          mixBlendMode: 'var(--fish-blend, normal)',
         }}
-      >
-        {/* 鲸鱼俯瞰剪影：头部圆润，身体纺锤形，尾鳍分叉 */}
-        <path
-          d="M10,40 C20,25 50,18 90,20 C120,22 145,28 158,35 C168,38 175,36 178,32 C176,38 172,44 165,46 C170,52 168,58 162,60 C150,55 120,52 90,52 C50,52 25,50 15,48 C8,46 6,44 10,40 Z M165,46 C172,50 176,56 174,62 C170,58 168,52 165,46 Z"
-          fill="var(--fish-fill, #0a2540)"
-          opacity="var(--fish-opacity, 0.75)"
-        />
-        {/* 鲸鱼脊背高光 */}
-        <path
-          d="M30,38 C60,30 110,28 150,36 L150,42 C110,38 60,40 30,44 Z"
-          fill="var(--fish-highlight, rgba(255,255,255,0.15))"
-        />
-        {/* 眼睛小点 */}
-        <circle cx="160" cy="38" r="1.5" fill="var(--fish-eye, rgba(255,255,255,0.6))" />
-      </svg>
+        onError={(e) => { e.currentTarget.style.display = 'none' }}
+      />
     </motion.div>
   )
 }
 
-/* ---------------- 小鱼群 ---------------- */
+/* ---------------- 小鱼群（鱼头朝上，群体向上游） ---------------- */
 function FishSchool({ s }) {
-  const startX = s.dir > 0 ? '-10%' : '110%'
-  const endX = s.dir > 0 ? '110%' : '-10%'
-
-  // 每条小鱼在群内的相对偏移（随机分布）
   const fishes = useMemo(() => {
-    return Array.from({ length: s.count }, (_, i) => ({
+    return Array.from({ length: s.count }, () => ({
       dx: (Math.random() - 0.5) * s.spread,
-      dy: (Math.random() - 0.5) * s.spread * 0.6,
-      scale: 0.6 + Math.random() * 0.6,
-      delay: Math.random() * 2,
+      dy: (Math.random() - 0.5) * s.spread * 1.2,
+      scale: 0.6 + Math.random() * 0.5,
+      delay: Math.random() * 3,
+      duration: 2.5 + Math.random() * 2,
     }))
   }, [s.count, s.spread])
 
   return (
     <motion.div
       className="absolute"
-      style={{ top: `${s.baseY}%`, left: 0, width: '100%', height: `${s.spread * 2}px` }}
-      initial={{ x: startX }}
-      animate={{ x: [startX, endX] }}
+      style={{
+        left: `${s.baseX}%`,
+        top: `${s.baseY}%`,
+        width: `${s.spread * 3}px`,
+        height: `${s.spread * 3}px`,
+        transform: 'translate(-50%, -50%)',
+      }}
+      animate={{ y: ['0%', '-6%', '0%'], x: ['0%', '2%', '0%', '-2%', '0%'] }}
       transition={{
         duration: s.duration,
         delay: s.delay,
         repeat: Infinity,
-        ease: 'linear',
+        ease: 'easeInOut',
       }}
     >
       {fishes.map((f, i) => (
@@ -211,23 +215,25 @@ function FishSchool({ s }) {
           key={i}
           className="absolute"
           style={{
-            left: `${50 + f.dx * 0.5}%`,
-            top: `${50 + f.dy}%`,
-            width: `${24 * s.scale * f.scale}px`,
-            height: `${10 * s.scale * f.scale}px`,
-            transform: `translate(-50%, -50%) ${s.dir < 0 ? 'scaleX(-1)' : ''}`,
+            left: `${50 + f.dx * 0.4}%`,
+            top: `${50 + f.dy * 0.4}%`,
+            width: `${40 * s.scale * f.scale}px`,
+            height: `${52 * s.scale * f.scale}px`,
+            transform: 'translate(-50%, -50%)',
           }}
-          animate={{ y: [0, -3, 0, 3, 0] }}
-          transition={{ duration: 2 + Math.random(), delay: f.delay, repeat: Infinity, ease: 'easeInOut' }}
+          animate={{ y: [0, -4, 0, 4, 0] }}
+          transition={{ duration: f.duration, delay: f.delay, repeat: Infinity, ease: 'easeInOut' }}
         >
-          <svg viewBox="0 0 24 10" className="h-full w-full">
-            {/* 小鱼：简单纺锤形 + 三角尾 */}
-            <path
-              d="M2,5 C5,1 14,1 19,5 C14,9 5,9 2,5 Z M18,2 L23,5 L18,8 Z"
-              fill="var(--fish-fill, #0a2540)"
-              opacity="var(--fish-opacity, 0.7)"
-            />
-          </svg>
+          <img
+            src={FISH_IMG}
+            alt=""
+            className="h-full w-full object-cover rounded-[40%]"
+            style={{
+              filter: 'drop-shadow(0 4px 12px var(--fish-shadow)) brightness(var(--fish-brightness, 1))',
+              mixBlendMode: 'var(--fish-blend, normal)',
+            }}
+            onError={(e) => { e.currentTarget.style.display = 'none' }}
+          />
         </motion.div>
       ))}
     </motion.div>
