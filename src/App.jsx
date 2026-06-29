@@ -87,7 +87,7 @@ export default function App() {
 
   return (
     <>
-      <CyberBackground />
+      <CyberBackground isLight={theme === 'light'} />
       <Scanlines />
       <ScrollProgress />
       <Navbar
